@@ -1,0 +1,9 @@
+{
+  "name": "aws-contractors",
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.986.0",
+    "pg": "^8.18.0"
+  }
+}

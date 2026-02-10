@@ -25,7 +25,7 @@ Learning resources used for this project:
 1. Installed the **AWS Toolkit** extension for Visual Studio Code.
 2. Downloaded and installed the **AWS SAM CLI** tool.
 3. Downloaded and installed **Docker** for local testing.
-4. Create an **IAM user** and **access keys** from the AWS console.
+4. In Visual Studio Code, I selected the **AWS Toolkit** extension and authenticated my account through SSO.
 
 ## Phase 1: Creating the Database (AWS RDS + PostgreSQL)
 
@@ -310,3 +310,7 @@ To connect to AWS RDS, instead of using environment variables to store the datab
 5. In the **Configuration** tab, I chose **Permissions**. This Lambda function needs to get access to the AWS RDS to access the database.
 6. I clicked on **Role name**, selected **Add permissions** and attached a pre-existing policy called **AWSSecretsManagerClientReadOnlyAccess** for the Lambda function to access the database credentials. I also added the **AWSLambdaVPCAccessExecutionRole** policy for the Lambda function to have access to the AWS RDS.
 7. Under **Configuration**, in the **VPC** menu, I also added the Lambda function in the same VPC and subnets as the AWS RDS.
+
+### Turning the Lambda function into a SAM application
+
+In Visual Studio Code, I located the _getContractorsWithRiskScores_ Lambda function, and selected the option **Convert to SAM Application**. That way, all other AWS components for this application (API Gateway, other Lambda functions) are in the same folder and I can back it up to GitHub.
