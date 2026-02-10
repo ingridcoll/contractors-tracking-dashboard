@@ -2,6 +2,8 @@
 
 I created this project to practice event-driven architecture and my AWS skills. I decided to create a simple fullstack application showing a dashboard of contractors and third-party employees for a **fake company**. It analyzes permissions, production access, and activity patterns to generate security recommendations.
 
+![ezgif-1966c3c741d0d035](https://github.com/user-attachments/assets/ae3329ea-4d9b-4f50-8788-3eaa858aa5b7)
+
 ## Technologies Used
 
 - **Backend Logic**: AWS Lambda, Node.js and JavaScript
