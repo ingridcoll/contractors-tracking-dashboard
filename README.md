@@ -2,13 +2,15 @@
 
 I created this project to practice event-driven architecture and my AWS skills. I decided to create a simple fullstack application showing a dashboard of contractors and third-party employees for a **fake company**. It analyzes permissions, production access, and activity patterns to generate security recommendations.
 
-## Technology Used
+## Technologies Used
 
 - **Backend Logic**: AWS Lambda, Node.js and JavaScript
 - **Data storage and Deployment**: Amazon S3 and Amazon RDS (PostgreSQL)
 - **API**: AWS API Gateway
 - **LLM Integration**: Google Gemini
 - **Frontend**: HTML, CSS and JavaScript
+
+<img width="1420" height="1135" alt="Untitled-2026-02-10-1643(1)" src="https://github.com/user-attachments/assets/9bad12c5-5b93-41c2-b0df-27ed2dec4566" />
 
 ## Learning Resources Used for this Project
 
@@ -503,3 +505,9 @@ Now the frontend can call the API Gateway, and each call will be routed to the c
 ## Phase 3: The Frontend (HTML, CSS, JavaScript and Amazon S3)
 
 The frontend is pretty simple. I created a simple HTML table to hold the _contractors_ data and I prompted DeepSeek to create a simple CSS stylesheet.
+
+I deployed the static .js, .html and .css files to an Amazon S3 bucket:
+1. From the AWS console, I selected **Amazon S3** and clicked on **Create bucket**
+2. I then uploaded all the frontend files into that bucket.
+3. Then, I navigated to **AWS Cloudfront** and selected **Create distribution**.
+4. After choosing my Amazon S3 bucket, the dashboard was live.
