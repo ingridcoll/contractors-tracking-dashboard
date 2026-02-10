@@ -20,6 +20,17 @@ I created this project to practice event-driven architecture and my AWS skills. 
 - Video: [AWS FULL STACK TUTORIAL | Build and Deploy Your First App on AWS (Beginner Friendly!)](https://www.youtube.com/watch?v=ADDG7LLS5IM) by Darla David
 - DeepSeek
 
+## Scroll to Any Section
+
+- [Basic Concepts Before Starting](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#basic-concepts-before-starting)
+- [Phase 1: Creating the Database (AWS RDS + PostgreSQL)](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#phase-0-setting-up-the-local-development-environment-for-aws)
+	- [Creating the Main Table in PostgreSQL](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#creating-the-main-table-in-postgresql)
+- [Phase 2: Building the Backend (AWS Lambda Functions with Node.js & JavaScript + AWS API Gateway)](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#phase-2-building-the-backend-aws-lambda-functions-with-nodejs--javascript--aws-api-gateway)
+	- [Creating the First Lambda function: getContractorsWithRiskScores](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#creating-the-first-lambda-function-getcontractorswithriskscores)
+	- [Creating the Second Lambda function: generateRecommendedActions](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#creating-the-second-lambda-function-generaterecommendedactions)
+	- [Amazon Web Services: API Gateway](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#amazon-web-services-api-gateway)
+- [Phase 3: The Frontend (HTML, CSS, JavaScript and Amazon S3)](https://github.com/ingridcoll/contractors-tracking-dashboard?tab=readme-ov-file#phase-3-the-frontend-html-css-javascript-and-amazon-s3)
+
 ## Basic Concepts Before Starting
 
 The key to serverless apps is **event-driven architecture**.
