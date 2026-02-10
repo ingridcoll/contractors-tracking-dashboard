@@ -4,24 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Contractor Access Levels and Risk Management</title>
+    <link rel="icon" type="image/x-icon" href="frontend/images/favicon.ico" />
     <link rel="stylesheet" href="frontend/css/styles.css" />
   </head>
   <body>
     <h1>Contractors Access Levels and Risk Management</h1>
+    <h3>
+      This dashboard lists all contractors and third-party employees for a fake
+      company. It analyzes permissions, production access, and activity patterns
+      to generate security recommendations. It's built with AWS Lambda and AWS
+      RDS (PostgreSQL) for serverless backend processing, Google Gemini for LLM
+      risk analysis, and JavaScript for the frontend design.
+    </h3>
+    <div class="table-container">
+      <table id="contractors-table">
+        <thead>
+          <tr>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Job Title</th>
+            <th>Project Description</th>
+            <th>Application</th>
+            <th>Access Level</th>
+            <th>Last Sign In</th>
+            <th>Contract End</th>
+            <th>Prod. Access?</th>
+            <th>Risk Score</th>
+            <th>Access Analysis</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-    <table id="contractors-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Last Sign In</th>
-          <th>Contract End</th>
-          <th>Prod Access</th>
-          <th>Risk Score</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div id="loading-indicator" style="display: none">
+      Loading contractors...
+    </div>
 
-    <script src="frontend/js/app.js" />
+    <script type="module" src="frontend/js/app.js"></script>
   </body>
 </html>

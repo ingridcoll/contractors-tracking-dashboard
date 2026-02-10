@@ -1,6 +1,22 @@
 # Contractors Access Levels and Risk Dashboard
 
-Stack: S3 + API Gateway + Lambda (Node.js) + DynamoDB + Bedrock
+I created this project to practice event-driven architecture and my AWS skills. I decided to create a simple fullstack application showing a dashboard of contractors and third-party employees for a **fake company**. It analyzes permissions, production access, and activity patterns to generate security recommendations.
+
+## Technology Used
+
+- **Backend Logic**: AWS Lambda, Node.js and JavaScript
+- **Data storage and Deployment**: Amazon S3 and Amazon RDS (PostgreSQL)
+- **API**: AWS API Gateway
+- **LLM Integration**: Google Gemini
+- **Frontend**: HTML, CSS and JavaScript
+
+## Learning Resources Used for this Project
+
+- Text: [Amazon Web Services Documentation](https://docs.aws.amazon.com/)
+- Video: [AWS FULL STACK TUTORIAL | Build and Deploy Your First App on AWS (Beginner Friendly!)](https://www.youtube.com/watch?v=ADDG7LLS5IM) by Darla David
+- DeepSeek
+
+## Basic Concepts Before Starting
 
 The key to serverless apps is **event-driven architecture**.
 
@@ -14,11 +30,6 @@ Commonly used AWS services in serverless applications:
 - **Application integration**: EventBridge, Amazon SNS, Amazon SQS
 - **Orchestration**: Step Functions
 - **Streaming data and analytics**: Amazon Data Firehose
-
-Learning resources used for this project:
-
-- Text: [Amazon Web Services Documentation](https://docs.aws.amazon.com/)
-- Video: [AWS FULL STACK TUTORIAL | Build and Deploy Your First App on AWS (Beginner Friendly!)](https://www.youtube.com/watch?v=ADDG7LLS5IM) by Darla David
 
 ## Phase 0: Setting Up the Local Development Environment for AWS
 
@@ -224,7 +235,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-## Phase 2: Building the Backend (AWS Lambda Functions with Node.js & TypeScript + AWS API Gateway)
+## Phase 2: Building the Backend (AWS Lambda Functions with Node.js & JavaScript + AWS API Gateway)
 
 ### Amazon Web Services: Lambda Functions
 
@@ -280,17 +291,7 @@ Workflows that involve branching logic, different types of failure models, and r
 
 AWS serverless services, including Lambda, are fault-tolerant and designed to handle failures. For example, if a service invokes a Lambda function and there is a service disruption, Lambda invokes your function in a different Availability Zone. If your function throws an error, Lambda retries the invocation. Since the same event may be received more than once, functions should be designed to be **idempotent**. This means that receiving the same event multiple times does not change the result beyond the first time the event was received.
 
-### Lambda permissions and roles
-
-https://docs.aws.amazon.com/lambda/latest/dg/concepts-basics.html#gettingstarted-concepts-permissions
-For Lambda, there are two main types of permissions that you need to configure:
-
-- Permissions that your function needs to access other AWS services
-- Permissions that other users and AWS services need to access your function
-
-The following sections describe both of these permission types and discuss best practices for applying least-privilege permissions.
-
-### Creating a Lambda function: getContractorsWithRiskScores
+### Creating the First Lambda function: getContractorsWithRiskScores
 
 This function will handle fetching the _contractors_ table from AWS RDS and executing the SQL function to calculate contractors' risk score based on their contract, application access, access level, and last sign in.
 
@@ -301,16 +302,204 @@ This function will handle fetching the _contractors_ table from AWS RDS and exec
 
 Once created, I increased the function's timeout value to 30 seconds, to allow more time to connect to AWS RDS.
 
-To connect to AWS RDS, instead of using environment variables to store the database host, user and password, I opted to use **AWS Secrets Manager** instead. That way, I get used to production-ready principles.
+To connect the Lambda function to the AWS RDS:
 
-1. In AWS Secrets Manager, selected **Store a new secret**.
-2. Chose **Credentials for Amazon RDS database**, selected the _contractors-fakecompany-db_ database and entered its username and password.
-3. Stored the secret as _dev/contractors-fakecompany-db_.
-4. Back in the Lambda function, I pasted the sample code snippet to access the credentials from AWS Secrets Manager. The code snippet to connect to the database should be placed **outside of the handler function** to allow connections to be re-used by subsequent function invocations.
-5. In the **Configuration** tab, I chose **Permissions**. This Lambda function needs to get access to the AWS RDS to access the database.
-6. I clicked on **Role name**, selected **Add permissions** and attached a pre-existing policy called **AWSSecretsManagerClientReadOnlyAccess** for the Lambda function to access the database credentials. I also added the **AWSLambdaVPCAccessExecutionRole** policy for the Lambda function to have access to the AWS RDS.
-7. Under **Configuration**, in the **VPC** menu, I also added the Lambda function in the same VPC and subnets as the AWS RDS.
+1. I used environment variables to store the database host, user and password.
+2. I added the Lambda function to the same VPC (Virtual Private Cloud) and subnet groups as the AWS RDS.
+3. Under **Configuration**, I selected **Permissions** and clicked on the function's **Role name**. Then, I added the policy **AWSLambdaVPCAccessExecutionRole**, which allows the Lambda resource to connect to services in the same VPC.
 
-### Turning the Lambda function into a SAM application
+As for the code, the Lambda function's purpose is to fetch all rows in the _contractors_ table from AWS RDS, and call the SQL function _calculate_contractor_risk_score_ I created in Phase 1.
 
-In Visual Studio Code, I located the _getContractorsWithRiskScores_ Lambda function, and selected the option **Convert to SAM Application**. That way, all other AWS components for this application (API Gateway, other Lambda functions) are in the same folder and I can back it up to GitHub.
+```js
+/*
+Queries the table "contractors" and
+the SQL function that calculates
+the risk score for each contractor:
+*/
+export const handler = async (event) => {
+  if (!pool) {
+    pool = await initializePool();
+  }
+
+  const method = event.requestContext?.http?.method;
+  const path = event.requestContext?.http?.path;
+
+  if (method === "GET" && path === "/contractors") {
+    try {
+      const contractors = await pool.query(`
+        SELECT 
+          c.id,
+          c.name,
+          c.email,
+          c.job_title,
+          c.project_description,
+          c.project_role,
+          c.application,
+          c.last_sign_in,
+          c.access_level,
+          c.contract_start,
+          c.contract_end,
+          c.has_prod_access,
+          c.actions_required,
+          c.updated_at,
+          risk.risk_score,
+          risk.risk_factors,
+          risk.calculation_details
+      FROM contractors c
+      LEFT JOIN LATERAL calculate_contractor_risk_score(c.id) as risk ON true
+      ORDER BY id ASC;
+      `);
+
+      return {
+        statusCode: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({
+          success: true,
+          count: contractors.rowCount,
+          contractors: contractors.rows,
+          generatedAt: new Date().toISOString(),
+        }),
+      };
+    } catch (error) {
+      console.error("Database query error: ", error);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: "Internal server error",
+          details: error.message,
+        }),
+      };
+    }
+  }
+};
+```
+
+I then deployed the function.
+
+### Creating the Second Lambda function: generateRecommendedActions
+
+The Lambda function _generateRecommendedActions_ extracts the specific contractor's data from the user's request and feeds it to Google Gemini. Then, the LLM generates a structured JSON response that lists 1 to 3 recommended actions to take to reduce the contractor's risk level.
+
+I followed the same steps as above to create this function, except I did not need to add this Lambda function to the AWS RDS VPC, since it is not connecting to the database.
+
+I added my Google Gemini API key in the function's **environment variables**.
+
+The prompt for Google Gemini is built with dynamic data from the request:
+
+```js
+/*
+Generate structured prompt using contractor's dynamic data:
+*/
+function createPrompt(contractorData, riskFactorsFormatted) {
+  const today = new Date().toLocaleString();
+  return `
+    Create 1-3 security recommendations for a contractor. Today is ${today}.
+
+    Contractor: ${contractorData.name}
+    Application: ${contractorData.application}
+    Access Level: ${contractorData.access_level}
+    Project Description: ${contractorData.project_description}
+    Production Access: ${contractorData.has_prod_access ? "Yes" : "No"}
+    Risk Factors: ${riskFactorsFormatted}
+
+    Generate recommendations in this exact JSON format:
+    [
+      {
+        "title": "Short action title",
+        "description": "Specific action to implement",
+        "reason": "How this addresses the risk factors",
+        "priority": "high"
+      }
+    ]
+
+    Return ONLY the JSON array with no other text.`;
+}
+```
+
+The response from the LLM is then parsed, and returned to the client.
+
+```js
+/*
+Call Google Gemini's flash model to generate
+1 to 3 recommendations in JSON format:
+*/
+async function callLLM(prompt) {
+  console.log("Generating risk-based recommendations...");
+
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.log("API key not found in environment variables.");
+    throw new Error("API key not configured");
+  }
+
+  try {
+    const modelName = "gemini-2.5-flash";
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 2000,
+          // Ensure response is in JSON format
+          responseMimeType: "application/json",
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Gemini API error:", errorText);
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Gemini API response received");
+
+    const recommendations = extractJSONFromResponse(data);
+
+    console.log("Successfully parsed recommendations:", recommendations.length);
+    return recommendations;
+  } catch (error) {
+    console.error("Error calling Gemini API:", error.message);
+    throw error;
+  }
+}
+```
+
+### Amazon Web Services: API Gateway
+
+As explained in the AWS documentation, API Gateway creates RESTful APIs that:
+
+1. Are HTTP-based.
+2. Enable stateless client-server communication.
+3. Implement standard HTTP methods such as GET, POST, PUT, PATCH, and DELETE.
+
+For each endpoint and method, the API Gateway can call one or the other Lambda functions I created above. For this project, the API Gateway calls:
+
+- **getContractorsWithRiskScores** through the endpoint _GET /contractors_.
+- **generateRecommendedActions** through the endpoint _POST /contractors/{contractor_id}/actions_.
+
+Now the frontend can call the API Gateway, and each call will be routed to the correct Lambda function.
+
+## Phase 3: The Frontend (HTML, CSS, JavaScript and Amazon S3)
+
+The frontend is pretty simple. I created a simple HTML table to hold the _contractors_ data and I prompted DeepSeek to create a simple CSS stylesheet.
