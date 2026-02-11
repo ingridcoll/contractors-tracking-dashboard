@@ -33,9 +33,61 @@ I created this project to practice event-driven architecture and my AWS skills. 
 
 ## Basic Concepts Before Starting
 
+Most of this information was taken from the [Amazon Web Services Documentation](https://docs.aws.amazon.com/).
+
 The key to serverless apps is **event-driven architecture**.
 
 **Event-driven architecture (EDA)** is a modern architecture pattern built from small, decoupled services that publish, consume, or route events. Events are messages sent between services. This architecture makes it easier to scale, update, and independently deploy separate components of a system.
+
+When using Lambda, you are responsible only for your code. Lambda runs your code on a high-availability compute infrastructure and manages all the computing resources, including server and operating system maintenance, capacity provisioning, automatic scaling, and logging.
+
+Because Lambda is a serverless, event-driven compute service, it uses a different programming paradigm than traditional web applications. The following model illustrates how Lambda works:
+
+- You write and organize your code in **Lambda functions**, which are the basic building blocks you use to create a Lambda application.
+- You control security and access through **Lambda permissions**, using execution roles to manage what AWS services your functions can interact with and what resource policies can interact with your code.
+- Event sources and AWS services **trigger** your Lambda functions, passing event data in JSON format, which your functions process (this includes event source mappings).
+- Lambda runs your code with language-specific runtimes (like Node.js and Python) in execution environments that package your runtime, layers, and extensions.
+
+Event-driven architectures can also make it easier to design near-real-time systems, helping organizations move away from batch-based processing.
+
+Features relevant to this project:
+
+- **Environment variables** modify application behavior without new code deployments.
+- **Versions** safely test new features while maintaining stable production environments.
+- **Lambda layers** optimize code reuse and maintenance by sharing common components across multiple functions.
+- **Code signing** enforce security compliance by ensuring only approved code reaches production systems.
+
+#### The Lambda programming model
+
+Essential to this model is the **handler**, where Lambda sends events to be processed by your code. Think of it as the entry point to your code. When Lambda receives an event, it passes this event and some **context** information to your handler. The handler then runs your code to process these events - for example, it might read a file when it's uploaded to Amazon S3, analyze an image, or update a database. Once your code finishes processing an event, the handler is ready to process the next one.
+
+**Standard Functions** (up to 15 minutes):
+
+1. Initialization: Environment setup and code loading
+2. Invocation: Single execution of function code
+3. Shutdown: Environment cleanup
+
+Lambda supports two methods of invocation in event-driven architectures:
+
+- **Direct invocation (push method)**: AWS services trigger Lambda functions directly. For example, Amazon S3 triggers a function when a file is uploaded or API Gateway triggers a function when it receives an HTTP request.
+- **Event source mapping (pull method)**: Lambda retrieves events and invokes functions. For example, Lambda retrieves messages from an Amazon SQS queue and invokes a function or Lambda reads records from a DynamoDB stream and invokes a function.
+
+#### Lambda best practices checklist:
+
+For standard Lambda functions, you should assume that the environment exists only for a **single invocation**. The function should initialize any required state when it is first started. For example, your function may require fetching data from a DynamoDB table. It should commit any permanent data changes to a durable store such as Amazon S3, DynamoDB, or Amazon SQS before exiting. It should not rely on any existing data structures or temporary files, or any internal state that would be managed by multiple invocations.
+
+Most architectures should prefer **many**, **shorter** functions over fewer, larger ones. The purpose of each function should be to **handle the event passed into the function**, with no knowledge or expectations of the overall workflow or volume of transactions. This makes the function agnostic to the source of the event with minimal coupling to other services.
+
+Any **global-scope constants** that change infrequently should be implemented as **environment variables** to allow updates without deployments. Any **secrets** or **sensitive information** should be stored in AWS Systems Manager Parameter Store or AWS Secrets Manager and loaded by the function. Since these resources are account-specific, you can create build pipelines across multiple accounts. The pipelines load the appropriate secrets per environment, without exposing these to developers or requiring any code changes.
+
+Many traditional systems are designed to run periodically and process batches of transactions that have built up over time. For example, a banking application may run every hour to process ATM transactions into central ledgers. In Lambda-based applications, the custom processing should be **triggered by every event**, allowing the service to scale up concurrency as needed, to provide near-real time processing of transactions.
+
+Workflows that involve branching logic, different types of failure models, and retry logic typically use an orchestrator to keep track of the state of the overall execution. Don't build ad-hoc orchestration in standard Lambda functions. This results in tight coupling, complex routing code, and no automatic state recovery. Instead, use one of these purpose-built orchestration options:
+
+- **Lambda durable functions**: Application-centric orchestration using standard programming languages with automatic checkpointing, built-in retry, and execution recovery. Ideal for developers who prefer keeping workflow logic in code alongside business logic within Lambda.
+- **AWS Step Functions**: Visual workflow orchestration with native integrations to 220+ AWS services. Ideal for multi-service coordination, zero-maintenance infrastructure, and visual workflow design.
+
+AWS serverless services, including Lambda, are fault-tolerant and designed to handle failures. For example, if a service invokes a Lambda function and there is a service disruption, Lambda invokes your function in a different Availability Zone. If your function throws an error, Lambda retries the invocation. Since the same event may be received more than once, functions should be designed to be **idempotent**. This means that receiving the same event multiple times does not change the result beyond the first time the event was received.
 
 Commonly used AWS services in serverless applications:
 
@@ -57,7 +109,7 @@ Commonly used AWS services in serverless applications:
 
 ### Amazon Web Services: Relational Database Service (RDS)
 
-**AWS Relational Database Service (RDS)** is a managed service that allows you to set up, operate, and scale a relational database in the cloud. Amazon RDS can automatically back up your database and keep your database software up to date with the latest version. You are also able to scale the compute resources or storage capacity associated with your relational database instance. In addition, Amazon RDS uses replication to enhance database availability, improve data durability, or scale beyond the capacity constraints of a single database instance for read-heavy database workloads.
+As per the documentation: "**AWS Relational Database Service (RDS)** is a managed service that allows you to set up, operate, and scale a relational database in the cloud. Amazon RDS can automatically back up your database and keep your database software up to date with the latest version. You are also able to scale the compute resources or storage capacity associated with your relational database instance. In addition, Amazon RDS uses replication to enhance database availability, improve data durability, or scale beyond the capacity constraints of a single database instance for read-heavy database workloads."
 
 I'm using AWS RDS for this project to host my database in the cloud, so it can communicate with the project's APIs.
 
@@ -254,57 +306,7 @@ $$ LANGUAGE plpgsql;
 
 ### Amazon Web Services: Lambda Functions
 
-**AWS Lambda** is a compute service that runs code without the need to manage servers. Your code runs, scaling up and down automatically, with pay-per-use pricing.
-
-When using Lambda, you are responsible only for your code. Lambda runs your code on a high-availability compute infrastructure and manages all the computing resources, including server and operating system maintenance, capacity provisioning, automatic scaling, and logging.
-
-Because Lambda is a serverless, event-driven compute service, it uses a different programming paradigm than traditional web applications. The following model illustrates how Lambda works:
-
-- You write and organize your code in **Lambda functions**, which are the basic building blocks you use to create a Lambda application.
-- You control security and access through **Lambda permissions**, using execution roles to manage what AWS services your functions can interact with and what resource policies can interact with your code.
-- Event sources and AWS services **trigger** your Lambda functions, passing event data in JSON format, which your functions process (this includes event source mappings).
-- Lambda runs your code with language-specific runtimes (like Node.js and Python) in execution environments that package your runtime, layers, and extensions.
-
-Event-driven architectures can also make it easier to design near-real-time systems, helping organizations move away from batch-based processing.
-
-Features relevant to this project:
-
-- **Environment variables** modify application behavior without new code deployments.
-- **Versions** safely test new features while maintaining stable production environments.
-- **Lambda layers** optimize code reuse and maintenance by sharing common components across multiple functions.
-- **Code signing** enforce security compliance by ensuring only approved code reaches production systems.
-
-#### The Lambda programming model
-
-Essential to this model is the **handler**, where Lambda sends events to be processed by your code. Think of it as the entry point to your code. When Lambda receives an event, it passes this event and some **context** information to your handler. The handler then runs your code to process these events - for example, it might read a file when it's uploaded to Amazon S3, analyze an image, or update a database. Once your code finishes processing an event, the handler is ready to process the next one.
-
-**Standard Functions** (up to 15 minutes):
-
-1. Initialization: Environment setup and code loading
-2. Invocation: Single execution of function code
-3. Shutdown: Environment cleanup
-
-Lambda supports two methods of invocation in event-driven architectures:
-
-- **Direct invocation (push method)**: AWS services trigger Lambda functions directly. For example, Amazon S3 triggers a function when a file is uploaded or API Gateway triggers a function when it receives an HTTP request.
-- **Event source mapping (pull method)**: Lambda retrieves events and invokes functions. For example, Lambda retrieves messages from an Amazon SQS queue and invokes a function or Lambda reads records from a DynamoDB stream and invokes a function.
-
-#### Lambda best practices checklist:
-
-For standard Lambda functions, you should assume that the environment exists only for a **single invocation**. The function should initialize any required state when it is first started. For example, your function may require fetching data from a DynamoDB table. It should commit any permanent data changes to a durable store such as Amazon S3, DynamoDB, or Amazon SQS before exiting. It should not rely on any existing data structures or temporary files, or any internal state that would be managed by multiple invocations.
-
-Most architectures should prefer **many**, **shorter** functions over fewer, larger ones. The purpose of each function should be to **handle the event passed into the function**, with no knowledge or expectations of the overall workflow or volume of transactions. This makes the function agnostic to the source of the event with minimal coupling to other services.
-
-Any **global-scope constants** that change infrequently should be implemented as **environment variables** to allow updates without deployments. Any **secrets** or **sensitive information** should be stored in AWS Systems Manager Parameter Store or AWS Secrets Manager and loaded by the function. Since these resources are account-specific, you can create build pipelines across multiple accounts. The pipelines load the appropriate secrets per environment, without exposing these to developers or requiring any code changes.
-
-Many traditional systems are designed to run periodically and process batches of transactions that have built up over time. For example, a banking application may run every hour to process ATM transactions into central ledgers. In Lambda-based applications, the custom processing should be **triggered by every event**, allowing the service to scale up concurrency as needed, to provide near-real time processing of transactions.
-
-Workflows that involve branching logic, different types of failure models, and retry logic typically use an orchestrator to keep track of the state of the overall execution. Don't build ad-hoc orchestration in standard Lambda functions. This results in tight coupling, complex routing code, and no automatic state recovery. Instead, use one of these purpose-built orchestration options:
-
-- **Lambda durable functions**: Application-centric orchestration using standard programming languages with automatic checkpointing, built-in retry, and execution recovery. Ideal for developers who prefer keeping workflow logic in code alongside business logic within Lambda.
-- **AWS Step Functions**: Visual workflow orchestration with native integrations to 220+ AWS services. Ideal for multi-service coordination, zero-maintenance infrastructure, and visual workflow design.
-
-AWS serverless services, including Lambda, are fault-tolerant and designed to handle failures. For example, if a service invokes a Lambda function and there is a service disruption, Lambda invokes your function in a different Availability Zone. If your function throws an error, Lambda retries the invocation. Since the same event may be received more than once, functions should be designed to be **idempotent**. This means that receiving the same event multiple times does not change the result beyond the first time the event was received.
+"**AWS Lambda** is a compute service that runs code without the need to manage servers. Your code runs, scaling up and down automatically, with pay-per-use pricing."
 
 ### Creating the First Lambda function: getContractorsWithRiskScores
 
@@ -517,7 +519,7 @@ Now the frontend can call the API Gateway, and each call will be routed to the c
 
 ## Phase 3: The Frontend (HTML, CSS, JavaScript and Amazon S3)
 
-The frontend is pretty simple. I created a simple HTML table to hold the _contractors_ data and I prompted DeepSeek to create a simple CSS stylesheet.
+The frontend is pretty simple. I created a simple HTML table to hold the _contractors_ data and I prompted DeepSeek to create a simple CSS stylesheet. As for the JavaScript frontend, I did heavily rely on DeepSeek to build the pop-up logic, since I am more familiar with backend work than DOM manipulation.
 
 I deployed the static .js, .html and .css files to an Amazon S3 bucket:
 1. From the AWS console, I selected **Amazon S3** and clicked on **Create bucket**
